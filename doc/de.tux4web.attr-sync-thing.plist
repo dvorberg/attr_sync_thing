@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<key>Label</key>
+		<string>de.tux4web.attr-sync-thing</string>
+        
+		<key>Program</key>
+		<string>/Users/diedrich/bin/attr_sync_thing</string>
+        
+		<key>KeepAlive</key>
+	    <true/>
+
+        <!-- LOGGING NOT WORKING RIGHT -->
+        
+        <!-- stderr output might be useful for users to capture
+             if something doesn’t work as expected.
+             Uncought Python Exceptions will end up here. -->
+        <key>StandardErrorPath</key>
+        <string>/Users/diedrich/Logs/attr_sync_thing.error.log</string>
+
+        <!-- NOT WORKING?? -->
+        <!-- stdout is only ment to be captured by developers.
+             This is supposed to be fine-grained debugging output. -->
+        <!--key>StandardOutPath</key>
+        <string>/Users/diedrich/Logs/attr_sync_thing.debug.log</string-->
+
+        <!-- These logfiles might require regular rotation.
+             Oh well!
+        -->
+        
+        <key>StartInterval</key>
+        <integer>20</integer>
+        
+        <key>WorkingDirectory</key>
+        <string>/Users/diedrich</string>
+	</dict>
+</plist>
