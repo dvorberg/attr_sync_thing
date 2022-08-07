@@ -114,6 +114,9 @@ def main():
 
     parser.add_argument("command", choices=["start", "refresh-pickles",
                                             "refresh-files"])
+
+    parser.add_argument("-d", dest="debug", action="store_true", default=False,
+                        help="Generate debug output to stderr.")
     
     args = parser.parse_args()
     ArgParseConfiguration(args).install()
