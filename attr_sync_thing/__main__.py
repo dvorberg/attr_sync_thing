@@ -3,6 +3,7 @@
 """
 
 import sys, time, pathlib, re, threading
+from .logging import debug, info, warning, error
 
 from .configuration import ArgParseConfiguration, configuration
 from .attr_storage import FilesystemAttributeStorage
@@ -20,26 +21,16 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
         self.modification_timers = {}
         
     def on_modified(self, event):
+        debug("MODIFICATION EVENT", event.src_path)
+        
         path = pathlib.Path(event.src_path)
         if modification_manager.did_we_modify(path):
             return
 
-        if path ==  configuration.storage_dir_path:
+        if path == configuration.storage_dir_path:
             return
         
-        if path.is_relative_to(configuration.storage_dir_path):
-            
-            debug("Pickle file updated", path)
-
-            # now = time.time()
-            # relpath = configuration.relpath_of(path)
-            # pickle = self.storage._pickles.get(relpath, None)
-
-            # # If the pickle is newer than the file, update the file’s
-            # # xattrs from the pickle.
-            # if path.stat().st_mtime <= pickle.mtime:
-            
-        else:
+        if not path.is_relative_to(configuration.storage_dir_path):            
             if not configuration.process_this(path):
                 return
             
@@ -60,7 +51,7 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
 
         
     def on_moved(self, event):
-        debug("MOVE", event.src_path, event.dest_path)
+        debug("MOVE EVENT", event.src_path, event.dest_path)
 
         # NextCloud creates a tmpfile named .FILENAME.REVISION_IN_HEX.
         # In this case we copy metadata from the attribute store
@@ -93,19 +84,43 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
                     def attempt_restore_from_pickle():
                         self.storage.restore_from_pickle(path)
                     try_twice(attempt_restore_from_pickle)
+        else:
+            # A file not moved by nextCloud?
+            # Check if the src_path is a watched file.
+            #    If so, delete the pickle.
+            # Check if the dest_path is (will be) a watched file.
+            #    If so, pickle the attributes.
+            src_path = pathlib.Path(event.src_path)
+            dest_path = pathlib.Path(event.dest_path)
+            
+            if configuration.process_this(src_path):
+                self.storage.delete_pickle_for(src_path)
+
+            if configuration.process_this(dest_path):
+                self.storage.update_pickle_of(dest_path)
+
+    def on_deleted(self, event):
+        debug("DELETE EVENT", event.src_path)
+        
+        src_path = pathlib.Path(event.src_path)
+        if configuration.process_this(src_path):
+            self.storage.delete_pickle_for(src_path)
+        
+                    
 def main():
+    info(sys.argv[0], "starting execution.")
+    
     parser = ArgParseConfiguration.make_argparser(__doc__)
 
-    parser.add_argument("command", choices=["start",
-                                            "refresh-pickles",
+    parser.add_argument("command", choices=["start", "refresh-pickles",
                                             "refresh-files"])
     
     args = parser.parse_args()
     ArgParseConfiguration(args).install()
 
+
     # Initialize the attr storage dir, start watching for changes.
     storage = FilesystemAttributeStorage()
-
     
 
     if args.command == "start":

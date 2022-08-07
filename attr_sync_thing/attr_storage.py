@@ -1,8 +1,9 @@
-import re, pathlib, pickle, uuid
+import re, pathlib, pickle, uuid, time
 
 from .configuration import configuration
 from .modification_manager import modification_manager
 from .file_info import FileInfo
+from .logging import debug, info, warning, error
 
 class PickleFile(object):
     def __init__(self, storage, filename:str, mtime:float, fi:FileInfo):
@@ -55,9 +56,6 @@ class PickleFile(object):
     
         self.mtime = self.pickle_file_path.stat().st_mtime
 
-        print("Updated pickle", self.pickle_file_path.name,
-              "for", self.fi.abspath.name)
-
     def update_fileinfo(self):
         with self.pickle_file_path.open("rb") as fp:
             self.fi = pickle.load(fp)
@@ -65,6 +63,7 @@ class PickleFile(object):
             
 class FilesystemAttributeStorage(object):
     def __init__(self):
+        start_time = time.time()
         path = configuration.storage_dir_path.resolve()
         
         if not ".noindex" in path.name:
@@ -111,8 +110,12 @@ class FilesystemAttributeStorage(object):
 
         # Having arrived here, we have an up-to-date version of the metadata
         # in RAM. We’ll check on each of the files in the root directory.
+        info("Attribute Storage read from", self.path,
+             "with", len(self._pickles), "entries in ",
+             f"{time.time()-start_time:.2f} seconds.")
         
     def update_pickle_of(self, watched_file_path:pathlib.Path):
+        debug(f"update_pickle_of({watched_file_path})")
         relpath = configuration.relpath_of(watched_file_path)
 
         if relpath in self._pickles:
@@ -120,8 +123,10 @@ class FilesystemAttributeStorage(object):
         else:
             self._pickles[relpath] = PickleFile.from_watched_file(
                 self, watched_file_path)
+
     
     def delete_pickle_for(self, watched_file_relpath:str):
+        debug(f"delete_pickle_for({watched_file_relpath})")
         if watched_file_relpath in self._pickles:
             # Try to remove the file from the filesystem…
             try:
@@ -133,12 +138,14 @@ class FilesystemAttributeStorage(object):
             del self._pickles[watched_file_relpath]
         
     def restore_from_pickle(self, watched_file_path:pathlib.Path):
+        debug(f"restore_from_pickle({watched_file_path})")
         pickle = self._pickles.get(configuration.relpath_of(watched_file_path),
                                    None)
         if pickle is not None:
             pickle.fi.write_to_file()
 
     def process_updated_pickle(self, pickle_file_name:str):
+        debug(f"process_updated_pickle({pickle_file_name})")
         pickle = PickleFile.from_pickle_file(self, pickle_file_name)
         self._pickles[pickle.fi.relpath] = pickle
         pickle.fi.write_to_file()

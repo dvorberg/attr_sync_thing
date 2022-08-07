@@ -1,4 +1,5 @@
 import os, argparse, pathlib, fnmatch
+from .logging import debug, info, warning, error
 
 class ConfigurationWrapper(object):
     def __init__(self):
@@ -20,15 +21,20 @@ class Configuration(object):
     def install(self):
         return configuration.install(self)
 
-    def process_this(self, path):
+    def process_this(self, path:pathlib.Path):
         for pattern in self.ignore_patterns:
             if fnmatch.fnmatch(path.name, pattern):
                 return False
+
+        rpath = path.resolve()
             
-        if path.resolve().is_relative_to(self.storage_dir_path):
+        if rpath.is_relative_to(self.storage_dir_path):
             return False
 
         if path.is_symlink():
+            return False
+
+        if not rpath.is_relative_to(self.root_path):
             return False
         
         return True

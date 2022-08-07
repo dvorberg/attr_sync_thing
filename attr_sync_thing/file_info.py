@@ -1,6 +1,7 @@
 import pathlib
 import xattr
 
+from .logging import debug, info, warning, error
 from .configuration import configuration
 from .modification_manager import modification_manager
 
