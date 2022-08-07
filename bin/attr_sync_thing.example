@@ -1,0 +1,5 @@
+#!/bin/bash
+
+. $HOME/Code/attr_sync_thing/virtualenv/bin/activate
+
+python -m attr_sync_thing -r $HOME/trinicloud.de/ start
