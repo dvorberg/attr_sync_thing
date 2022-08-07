@@ -4,7 +4,6 @@
 
 import sys, time, pathlib, re, threading
 
-from .logging import debug, log
 from .configuration import ArgParseConfiguration, configuration
 from .attr_storage import FilesystemAttributeStorage
 from .modification_manager import modification_manager
