@@ -1,5 +1,7 @@
 import sys
 
+from .configuration import configuration
+
 try:
     from termcolor import colored
     from io import StringIO
@@ -27,7 +29,8 @@ def debug(*args):
     """
     Step-by-step what’s going on, for debugging purposes. Goes to stdout.    
     """
-    print(*args, file=sys.stdout)
+    if configuration.debug:
+        print(*args, file=sys.stderr)
 
 def info(*args):    
     """
