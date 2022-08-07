@@ -1,5 +1,4 @@
 import os, argparse, pathlib, fnmatch
-from .logging import debug, info, warning, error
 
 class ConfigurationWrapper(object):
     def __init__(self):
