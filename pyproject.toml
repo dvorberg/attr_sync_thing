@@ -1,6 +1,6 @@
 [project]
 name="attr_sync_thing"
-version="0.2"
+version="0.3"
 authors = [
   { name="Diedrich Vorberg", email="diedrich@tux4web.de" },
 ]
@@ -13,13 +13,17 @@ classifiers=[
     "Operating System :: MacOS :: MacOS X",
 ]
 
-[tool.setuptools]
-py-modules = [ "attr_sync_thing", ]
+dependencies = [ "watchdog", "xattr", ]
+
+[project.scripts]
+attr_sync_thing = "attr_sync_thing.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["attr_sync_thing"]  # ["*"] by default
 
 [project.urls]
 "Homepage" = "https://github.com/dvorberg/attr_sync_thing"
 
-
 [build-system]
-requires = ["setuptools>=61.0", "watchdog>=2.1.9", "xattr>=0.9.9"]
+requires = ["setuptools>=61.0",]
 build-backend = "setuptools.build_meta"
