@@ -125,8 +125,9 @@ class FilesystemAttributeStorage(object):
                 self, watched_file_path)
 
     
-    def delete_pickle_for(self, watched_file_relpath:str):
-        debug(f"delete_pickle_for({watched_file_relpath})")
+    def delete_pickle_for(self, watched_file_path:pathlib.Path):
+        debug(f"delete_pickle_for({watched_file_path})")
+        watched_file_relpath = configuration.relpath_of(watched_file_path)
         if watched_file_relpath in self._pickles:
             # Try to remove the file from the filesystem…
             try:
