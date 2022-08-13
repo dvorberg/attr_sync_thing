@@ -1,5 +1,6 @@
 """\
-<put description here>
+Sync MacOS extended attributes through tools that do not support
+them (like nextCloud or ownCloud).
 """
 
 import sys, time, pathlib, re, threading
@@ -93,7 +94,7 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
             src_path = pathlib.Path(event.src_path)
             dest_path = pathlib.Path(event.dest_path)
             
-            if configuration.process_this(src_path):
+            if configuration.process_this(src_path):                
                 self.storage.delete_pickle_for(src_path)
 
             if configuration.process_this(dest_path):
@@ -108,12 +109,13 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
         
                     
 def main():
-    info(sys.argv[0], "starting execution.")
+    info(sys.argv[0], "starting.")
     
     parser = ArgParseConfiguration.make_argparser(__doc__)
 
-    parser.add_argument("command", choices=["start", "refresh-pickles",
-                                            "refresh-files"])
+    parser.add_argument("command",
+                        choices=["start", "refresh-pickles", "refresh-files"],
+                        nargs="?", default="start", const="start")
 
     parser.add_argument("-d", dest="debug", action="store_true", default=False,
                         help="Generate debug output to stderr.")
@@ -121,6 +123,9 @@ def main():
     args = parser.parse_args()
     ArgParseConfiguration(args).install()
 
+    if args.root_path is None:
+        parser.error("error: the following arguments are required: --root/-r "
+                     "or $ROOT_PATH must be set.")
 
     # Initialize the attr storage dir, start watching for changes.
     storage = FilesystemAttributeStorage()
