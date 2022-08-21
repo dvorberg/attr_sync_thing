@@ -87,7 +87,10 @@ class ArgParseConfiguration(Configuration):
                                               "Attribute_Storage.noindex"),
                             type=pathlib.Path)
         parser.add_argument("--ignore", "-i", dest="ignore_patterns",
-                            default=[".DS_Store", "*~", ".*", "#*#"],
+                            default=[".*", "*~", "#*#",
+                                     "*.pages.sb-*",
+                                     "*.numbers.sb-*",
+                                     "*.keynote.sb-*", ],
                             nargs="*")
         
         return parser
