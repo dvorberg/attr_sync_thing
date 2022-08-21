@@ -81,41 +81,35 @@ Create a file named something like `~/Library/LaunchAgents/de.tux4web.attr-sync-
 		<key>Program</key>
 		<string>/Users/you/Library/Python/3.8/bin/attr_sync_thing</string>
 
-    <key>ProgramArguments</key>
-    <array>
-    	<string>/Users/you/Library/Python/3.8/bin/attr_sync_thing</string>
-    	<string>-r</string>
-    	<string>/Users/you/Nextcloud</string>
-      <!--For debugging enable logging and this: <string>-d</string>-->
-    	<string>start</string>
-    </array>
-    
-		<key>KeepAlive</key>
-    <true/>
+        <key>ProgramArguments</key>
+        <array>
+            <string>/Users/you/Library/Python/3.8/bin/attr_sync_thing</string>
 
-    <!-- LOGGING IS NOT WORKING RIGHT -->
-        
-    <!-- stderr output might be useful for users to capture
-         if something doesn’t work as expected.
-         Uncought Python Exceptions will end up here. -->
-    <!--key>StandardErrorPath</key>
-    <string>/Users/you/Library/Logs/attr_sync_thing.error.log</string-->
+            <string>-r</string>
+            <string>/Users/you/Nextcloud</string>
 
-    <!-- NOT WORKING?? -->
-    <!-- stdout is only ment to be captured by developers.
-         This is supposed to be fine-grained debugging output. -->
-    <!--key>StandardOutPath</key>
-    <string>/Users/you/Library/Logs/attr_sync_thing.debug.log</string-->
+            <string>--debug</string>
 
-    <!-- These logfiles might require regular rotation.
-         Oh well!
-    -->
-        
-    <key>StartInterval</key>
-    <integer>20</integer>
-        
-    <key>WorkingDirectory</key>
-    <string>/Users/you</string>
+            <string>-l</string>
+            <string>/Users/you/Library/Logs/attr_sync_thing.log</string>
+
+            <string>start</string>
+        </array>
+
+        <key>KeepAlive</key>
+        <true/>
+
+        <!-- stderr output might be useful for users to capture
+             if something doesn’t work as expected.
+             Uncought Python Exceptions will end up here. -->
+        <!--key>StandardErrorPath</key>
+        <string>/Users/you/Library/Logs/attr_sync_thing.error.log</string-->
+
+        <key>StartInterval</key>
+        <integer>20</integer>
+
+        <key>WorkingDirectory</key>
+        <string>/Users/you</string>
 	</dict>
 </plist>
 ```
@@ -147,7 +141,7 @@ you@yourmac:~$ ps -ef|grep Python
  1001 51978 45668   0  9:12PM ttys001    0:00.00 grep Python
 ```
 
-This should be it. It should still be there after a reboot and hybernation. It is for me. And: Not to brag, but this little thing is working flawlessly for me, with two machines and a whole ton of files (28,000 in one archive). 
+This should be it. It should still be there after a reboot and hybernation. 
 
 To get rid of if run:
 
