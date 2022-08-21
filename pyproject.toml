@@ -1,6 +1,6 @@
 [project]
 name="attr_sync_thing"
-version="0.3"
+version="0.4"
 authors = [
   { name="Diedrich Vorberg", email="diedrich@tux4web.de" },
 ]
