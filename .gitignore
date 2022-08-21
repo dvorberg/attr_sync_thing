@@ -1,5 +1,10 @@
 *~
 .DS_Store
+attr_sync_thing.egg-info
+dist/
+virtualenv
+virtualenv.noindex
+.#*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -132,3 +137,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+Nextcloud/
