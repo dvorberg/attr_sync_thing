@@ -110,8 +110,8 @@ class FilesystemAttributeStorage(object):
 
         # Having arrived here, we have an up-to-date version of the metadata
         # in RAM. We’ll check on each of the files in the root directory.
-        info("Attribute Storage read from", self.path,
-             "with", len(self._pickles), "entries in ",
+        info(f"Attribute Storage read from {self.path} with "
+             f"{len(self._pickles)} entries in "
              f"{time.time()-start_time:.2f} seconds.")
         
     def update_pickle_of(self, watched_file_path:pathlib.Path):
