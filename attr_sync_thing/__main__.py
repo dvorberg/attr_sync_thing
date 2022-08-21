@@ -4,7 +4,7 @@ them (like nextCloud or ownCloud).
 """
 
 import sys, time, pathlib, re, threading
-from .logging import debug, info, warning, error
+from .logging import init_logging, debug, info, warning, error
 
 from .configuration import ArgParseConfiguration, configuration
 from .attr_storage import FilesystemAttributeStorage
@@ -20,10 +20,16 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
     def __init__(self, attribute_storage:FilesystemAttributeStorage):
         self.storage = attribute_storage
         self.modification_timers = {}
+
+    def dispatch(self, event):
+        try:
+            FileSystemEventHandler.dispatch(self, event)
+        except Exception as e:
+            error(e, exc_info=True)            
         
     def on_modified(self, event):
-        debug("MODIFICATION EVENT", event.src_path)
-        
+        debug(f"MODIFICATION EVENT {event.src_path}")
+
         path = pathlib.Path(event.src_path)
         if modification_manager.did_we_modify(path):
             return
@@ -37,22 +43,24 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
             
             # Modifications sometimes come in bursts (Pages, Numbers, …).
             # We wait 1/2sec before acting on them.
-            if path in self.modification_timers:
-                self.modification_timers[path].cancel()
+            #if path in self.modification_timers:
+            #    self.modification_timers[path].cancel()
                 
-            self.modification_timers[path] = threading.Timer(
-                0.5, self._process_watched_file_modification, args=[path,])
-            self.modification_timers[path].start()
+            #self.modification_timers[path] = threading.Timer(
+            #    0.5, self._process_watched_file_modification, args=[path,])
+            #self.modification_timers[path].start()
+
+            self.storage.update_pickle_of(path)
 
     def _process_watched_file_modification(self, path:pathlib.Path):
-        debug("Processing watched file modified", path)
+        debug(f"Processing watched file modified {path}")
         
         del self.modification_timers[path]    
         self.storage.update_pickle_of(path)
 
         
     def on_moved(self, event):
-        debug("MOVE EVENT", event.src_path, event.dest_path)
+        debug(f"MOVE EVENT {event.src_path} -> {event.dest_path}")
 
         # NextCloud creates a tmpfile named .FILENAME.REVISION_IN_HEX.
         # In this case we copy metadata from the attribute store
@@ -101,27 +109,39 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
                 self.storage.update_pickle_of(dest_path)
 
     def on_deleted(self, event):
-        debug("DELETE EVENT", event.src_path)
+        debug(f"DELETE EVENT {event.src_path}")
         
         src_path = pathlib.Path(event.src_path)
         if configuration.process_this(src_path):
             self.storage.delete_pickle_for(src_path)
         
                     
-def main():
-    info(sys.argv[0], "starting.")
-    
+def main():    
     parser = ArgParseConfiguration.make_argparser(__doc__)
 
     parser.add_argument("command",
                         choices=["start", "refresh-pickles", "refresh-files"])
     
-    parser.add_argument("-d", dest="debug", action="store_true", default=False,
-                        help="Generate debug output to stderr.")
+    parser.add_argument("-d", "--debug",
+                        dest="debug", action="store_true", default=False,
+                        help="Commit debug information to log.")
+    parser.add_argument("--info", dest="info",
+                        action="store_true", default=False,
+                        help="Log informative messages.")
+    parser.add_argument("--log-events", dest="log_watchdog_events",
+                        action="store_true", default=False,
+                        help="Enable the watchdog module’s event logging.")
+    parser.add_argument("-l", dest="logfile_path",
+                        default=None,
+                        type=pathlib.Path,
+                        help="Where to store logfiles.")
     
     args = parser.parse_args()
+
     ArgParseConfiguration(args).install()
 
+    init_logging()
+    
     if args.root_path is None:
         parser.error("error: the following arguments are required: --root/-r "
                      "or $ROOT_PATH must be set.")
@@ -129,7 +149,6 @@ def main():
     # Initialize the attr storage dir, start watching for changes.
     storage = FilesystemAttributeStorage()
     
-
     if args.command == "start":
         # Start watching the root dir.
         event_handler = MyWatchdogEventHandler(storage)
