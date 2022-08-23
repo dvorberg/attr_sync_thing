@@ -1,7 +1,6 @@
 import re, pathlib, pickle, uuid, time
 
 from .configuration import configuration
-from .modification_manager import modification_manager
 from .file_info import FileInfo
 from .logging import debug, info, warning, error
 
@@ -48,11 +47,11 @@ class PickleFile(object):
         • updates the FileInfo object
         • and stores it in its pickle file.
         """
-        self.fi.read_from_file()
+        modified = self.fi.read_from_file()
 
-        modification_manager.register_modification(self.pickle_file_path)
-        with self.pickle_file_path.open("wb") as fp:
-            pickle.dump(self.fi, fp)
+        if modified or (not self.pickle_file_path.exists()):
+            with self.pickle_file_path.open("wb") as fp:
+                pickle.dump(self.fi, fp)
     
         self.mtime = self.pickle_file_path.stat().st_mtime
 
