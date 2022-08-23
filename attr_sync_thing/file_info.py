@@ -3,7 +3,6 @@ import xattr
 
 from .logging import debug, info, warning, error
 from .configuration import configuration
-from .modification_manager import modification_manager
 
 class FileInfo:
     """
@@ -36,7 +35,7 @@ class FileInfo:
         Returns a copy of our attributes. This class does not modify
         single attributes.
         """
-        return self._attributes.copy()    
+        return self._attributes.copy()
 
     @property
     def _accessor(self) -> xattr.xattr:
@@ -47,7 +46,13 @@ class FileInfo:
         return xattr.xattr(str(self.abspath))
 
     def read_from_file(self):
-        self._attributes = dict(self._accessor.iteritems())        
+        old = self._attributes
+        read = dict()
+        self._attributes = dict(
+            [ (name, value)
+              for (name, value) in self._accessor.iteritems()
+              if name in configuration.attributes_to_copy ])
+        return ( self._attributes == old )
     
     def write_to_file(self):
         try:
@@ -55,8 +60,6 @@ class FileInfo:
         except OSError:
             pass
         else:        
-            modification_manager.register_modification(self.abspath)
-        
             a.clear()
             for name, value in self._attributes.items():
                 if name in configuration.attributes_to_copy:
