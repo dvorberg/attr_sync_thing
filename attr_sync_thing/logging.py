@@ -54,6 +54,9 @@ try:
 except ImportError:
     StdStreamHandler = logging.StreamHandler
 
+    def colored(s, color):
+        return s
+
 def init_logging():       
     level = logging.WARNING
     
