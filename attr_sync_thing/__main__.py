@@ -8,7 +8,6 @@ from .logging import init_logging, debug, info, warning, error
 
 from .configuration import ArgParseConfiguration, configuration
 from .attr_storage import FilesystemAttributeStorage
-from .modification_manager import modification_manager
 
 from watchdog.observers.fsevents import ( BaseObserver, FSEventsObserver,
                                           FSEventsEmitter, )
@@ -36,25 +35,11 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
         fsevent_logger.debug(f"MODIFICATION EVENT {event.src_path}")
 
         path = pathlib.Path(event.src_path)
-        if modification_manager.did_we_modify(path):
-            return
 
-        if path == configuration.storage_dir_path:
-            return
-        
         if not path.is_relative_to(configuration.storage_dir_path):            
             if not configuration.process_this(path):
                 return
             
-            # Modifications sometimes come in bursts (Pages, Numbers, …).
-            # We wait 1/2sec before acting on them.
-            #if path in self.modification_timers:
-            #    self.modification_timers[path].cancel()
-                
-            #self.modification_timers[path] = threading.Timer(
-            #    0.5, self._process_watched_file_modification, args=[path,])
-            #self.modification_timers[path].start()
-
             self.storage.update_pickle_of(path)
 
     #def _process_watched_file_modification(self, path:pathlib.Path):
@@ -73,7 +58,7 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
         # to the file. 
         # The download/move does not create a modified event.
         # Chances are, the corresponding .asta file will be overwritten soon.
-        # This is why we don’t
+        # This is why we don’t.
 
         src_name = event.src_path.split("/")[-1]
         dest_name = event.dest_path.split("/")[-1]
@@ -117,7 +102,7 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
     def on_deleted(self, event):
         fsevent_logger.debug(f"DELETE EVENT {event.src_path}")
 
-        # Event come in pretty much arbitrary order. Pages/Keynote/Numbers
+        # Events come in pretty much arbitrary order. Pages/Keynote/Numbers
         # sometimes delete a file on saving, create a tempfile and move
         # the tempfile to the previous location. If the delete event makes it
         # last in the queue, causing us to delete a pickle we still want to
