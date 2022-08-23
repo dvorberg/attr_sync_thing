@@ -52,7 +52,8 @@ class FileInfo:
             [ (name, value)
               for (name, value) in self._accessor.iteritems()
               if name in configuration.attributes_to_copy ])
-        return ( self._attributes == old )
+        
+        return not ( self._attributes == old )
     
     def write_to_file(self):
         try:
