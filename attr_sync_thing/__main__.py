@@ -3,23 +3,28 @@ Sync MacOS extended attributes through tools that do not support
 them (like nextCloud or ownCloud).
 """
 
-import sys, time, pathlib, re, threading
+import sys, time, pathlib, re, threading, logging
 from .logging import init_logging, debug, info, warning, error
 
 from .configuration import ArgParseConfiguration, configuration
 from .attr_storage import FilesystemAttributeStorage
 from .modification_manager import modification_manager
 
-from watchdog.observers import Observer
+from watchdog.observers.fsevents import ( BaseObserver, FSEventsObserver,
+                                          FSEventsEmitter, )
+from watchdog.observers.api import DEFAULT_OBSERVER_TIMEOUT
 from watchdog.events import FileSystemEventHandler
 
 nextcloud_tempfile_re = re.compile(r"\.(.*)\.~[a-f0-9]+$")
 
+# We use the fsevents logger to debug() our event handling below.
+# Event arrival and our processng of them may differ. 
+fsevent_logger = logging.getLogger('fsevents')
 
 class MyWatchdogEventHandler(FileSystemEventHandler):
     def __init__(self, attribute_storage:FilesystemAttributeStorage):
         self.storage = attribute_storage
-        self.modification_timers = {}
+        self.deletion_timers = {}
 
     def dispatch(self, event):
         try:
@@ -28,7 +33,7 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
             error(e, exc_info=True)            
         
     def on_modified(self, event):
-        debug(f"MODIFICATION EVENT {event.src_path}")
+        fsevent_logger.debug(f"MODIFICATION EVENT {event.src_path}")
 
         path = pathlib.Path(event.src_path)
         if modification_manager.did_we_modify(path):
@@ -52,15 +57,16 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
 
             self.storage.update_pickle_of(path)
 
-    def _process_watched_file_modification(self, path:pathlib.Path):
-        debug(f"Processing watched file modified {path}")
+    #def _process_watched_file_modification(self, path:pathlib.Path):
+    #    debug(f"Processing watched file modified {path}")
         
-        del self.modification_timers[path]    
-        self.storage.update_pickle_of(path)
+    #    del self.modification_timers[path]    
+    #    self.storage.update_pickle_of(path)
 
         
     def on_moved(self, event):
-        debug(f"MOVE EVENT {event.src_path} -> {event.dest_path}")
+        fsevent_logger.debug(
+            f"MOVE EVENT {event.src_path} -> {event.dest_path}")
 
         # NextCloud creates a tmpfile named .FILENAME.REVISION_IN_HEX.
         # In this case we copy metadata from the attribute store
@@ -109,19 +115,47 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
                 self.storage.update_pickle_of(dest_path)
 
     def on_deleted(self, event):
-        debug(f"DELETE EVENT {event.src_path}")
-        
+        fsevent_logger.debug(f"DELETE EVENT {event.src_path}")
+
+        # Event come in pretty much arbitrary order. Pages/Keynote/Numbers
+        # sometimes delete a file on saving, create a tempfile and move
+        # the tempfile to the previous location. If the delete event makes it
+        # last in the queue, causing us to delete a pickle we still want to
+        # hold on to. Thus we wait a little longer than
+        # DEFAULT_OBSERVER_TIMEOUT and check if the watched files exists
+        # (or has re-appeared) before deleting the pickle. 
         src_path = pathlib.Path(event.src_path)
         if configuration.process_this(src_path):
-            self.storage.delete_pickle_for(src_path)
+            if src_path in self.deletion_timers:
+                self.deletion_timers[src_path].cancel()
+            self.deletion_timers[src_path] = threading.Timer(
+                DEFAULT_OBSERVER_TIMEOUT + .2,
+                self._process_delete_event, args=[src_path,])
+            self.deletion_timers[src_path].start()
+
+    def _process_delete_event(self, src_path):
+        del self.deletion_timers[src_path]
         
+        if not src_path.exists():
+            self.storage.delete_pickle_for(src_path)
+
+
+class MyFSEventsEmitter(FSEventsEmitter):
+    def _queue_modified_event(self, event, src_path, dirname):
+        if event.is_xattr_mod:
+            FSEventsEmitter._queue_modified_event(
+                self, event, src_path, dirname)
+
+
+class MyObserver(FSEventsObserver):
+    def __init__(self, timeout=DEFAULT_OBSERVER_TIMEOUT):
+        BaseObserver.__init__(
+            self, emitter_class=MyFSEventsEmitter, timeout=timeout)
+    
                     
 def main():    
     parser = ArgParseConfiguration.make_argparser(__doc__)
 
-    parser.add_argument("command",
-                        choices=["start", "refresh-pickles", "refresh-files"])
-    
     parser.add_argument("-d", "--debug",
                         dest="debug", action="store_true", default=False,
                         help="Commit debug information to log.")
@@ -134,7 +168,25 @@ def main():
     parser.add_argument("-l", dest="logfile_path",
                         default=None,
                         type=pathlib.Path,
-                        help="Where to store logfiles.")
+                        help="Where to write a logfiles (auto-rotated)")
+
+    subparsers = parser.add_subparsers(help="command", dest="command")
+
+    start_parser = subparsers.add_parser(
+        "start", help="Start wathing the filesystem.")
+
+    refresh_pickles = subparsers.add_parser(
+        "refresh-pickles", help="Create a new pickle for each watched file.")
+
+    refresh_files = subparsers.add_parser(
+        "refresh-files",
+        help="Write the extended attributes from each "
+        "pickle found to the corresponding file.")
+
+    show_pickles = subparsers.add_parser(
+        "show-pickles", help="Print pickled extended attributes to stdout.")
+    show_pickles.add_argument("res", nargs="+",
+                              help="Filename regular expressions")
     
     args = parser.parse_args()
 
@@ -152,7 +204,7 @@ def main():
     if args.command == "start":
         # Start watching the root dir.
         event_handler = MyWatchdogEventHandler(storage)
-        observer = Observer()
+        observer = MyObserver()
         observer.schedule(event_handler, configuration.root_path,
                           recursive=True)
         observer.start()
@@ -170,6 +222,20 @@ def main():
         storage.rebuild_from_filebase()
     elif args.command == "refresh-files":
         storage.refresh_watched_files()
+    elif args.command == "show-pickles":
+        import re
+        from .logging import colored
+        
+        res = [ re.compile(regex, re.IGNORECASE) for regex in args.res ]
+        
+        for fileinfo in storage.matching_fileinfos(res):
+            print(colored(str(fileinfo.relpath) + ":", "red"))
+            attrs = fileinfo.attributes
+            
+            names = sorted(attrs.keys())
+            for name in names:
+                print(colored(name + ":" , "cyan"), str(attrs[name]))
+            print()
     
 if __name__ == '__main__':
     main()
