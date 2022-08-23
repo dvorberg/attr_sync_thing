@@ -115,7 +115,7 @@ class FilesystemAttributeStorage(object):
              f"{time.time()-start_time:.2f} seconds.")
         
     def update_pickle_of(self, watched_file_path:pathlib.Path):
-        debug(f"update_pickle_of({watched_file_path})")
+        info(f"update_pickle_of({watched_file_path})")
         relpath = configuration.relpath_of(watched_file_path)
 
         if relpath in self._pickles:
@@ -126,7 +126,7 @@ class FilesystemAttributeStorage(object):
 
     
     def delete_pickle_for(self, watched_file_path:pathlib.Path):
-        debug(f"delete_pickle_for({watched_file_path})")
+        info(f"delete_pickle_for({watched_file_path})")
         watched_file_relpath = configuration.relpath_of(watched_file_path)
         if watched_file_relpath in self._pickles:
             # Try to remove the file from the filesystem…
@@ -139,14 +139,14 @@ class FilesystemAttributeStorage(object):
             del self._pickles[watched_file_relpath]
         
     def restore_from_pickle(self, watched_file_path:pathlib.Path):
-        debug(f"restore_from_pickle({watched_file_path})")
+        info(f"restore_from_pickle({watched_file_path})")
         pickle = self._pickles.get(configuration.relpath_of(watched_file_path),
                                    None)
         if pickle is not None:
             pickle.fi.write_to_file()
 
     def process_updated_pickle(self, pickle_file_name:str):
-        debug(f"process_updated_pickle({pickle_file_name})")
+        info(f"process_updated_pickle({pickle_file_name})")
         pickle = PickleFile.from_pickle_file(self, pickle_file_name)
         self._pickles[pickle.fi.relpath] = pickle
         pickle.fi.write_to_file()
@@ -182,6 +182,14 @@ class FilesystemAttributeStorage(object):
                 pickle.fi.write_to_file()
             except IOError:
                 pass
+
+    def matching_fileinfos(self, res):
+        filepaths = self._pickles.keys()
+        
+        for filepath in sorted(filepaths):
+            for re in res:
+                if re.match(str(filepath)) is not None:
+                    yield self._pickles[filepath].fi
 
 # UNIT TESTS ############################################################
 if __name__ == "__main__":
