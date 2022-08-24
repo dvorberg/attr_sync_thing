@@ -23,6 +23,7 @@ fsevent_logger = logging.getLogger('fsevents')
 class MyWatchdogEventHandler(FileSystemEventHandler):
     def __init__(self, attribute_storage:FilesystemAttributeStorage):
         self.storage = attribute_storage
+        self.modification_timers = {}
         self.deletion_timers = {}
 
     def dispatch(self, event):
@@ -40,14 +41,7 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
             if not configuration.process_this(path):
                 return
             
-            self.storage.update_pickle_of(path)
-
-    #def _process_watched_file_modification(self, path:pathlib.Path):
-    #    debug(f"Processing watched file modified {path}")
-        
-    #    del self.modification_timers[path]    
-    #    self.storage.update_pickle_of(path)
-
+            self._start_modification_timer_for(path)
         
     def on_moved(self, event):
         fsevent_logger.debug(
@@ -94,10 +88,10 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
             dest_path = pathlib.Path(event.dest_path)
             
             if configuration.process_this(src_path):
-                self._start_deletion_timer_for(src_path)
+                self._start_modification_timer_for(src_path)
 
             if configuration.process_this(dest_path):
-                self.storage.update_pickle_of(dest_path)
+                self._start_modification_timer_for(dest_path)
 
     def on_deleted(self, event):
         fsevent_logger.debug(f"DELETE EVENT {event.src_path}")
@@ -111,21 +105,23 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
         # (or has re-appeared) before deleting the pickle. 
         src_path = pathlib.Path(event.src_path)
         if configuration.process_this(src_path):
-            self._start_deletion_timer_for(src_path)
+            self._start_modification_timer_for(src_path)
 
-    def _start_deletion_timer_for(self, src_path,
-                                  timeout=DEFAULT_OBSERVER_TIMEOUT + .2):
-        if src_path in self.deletion_timers:
-            self.deletion_timers[src_path].cancel()
-        self.deletion_timers[src_path] = threading.Timer(
-            timeout,
-            self._process_delete_event, args=[src_path,])
-        self.deletion_timers[src_path].start()
+    def _start_modification_timer_for(self, src_path):
+        if src_path in self.modification_timers:
+            self.modification_timers[src_path].cancel()
+            
+        self.modification_timers[src_path] = threading.Timer(
+            DEFAULT_OBSERVER_TIMEOUT + .2,
+            self._process_modification_event, args=[src_path,])
+        self.modification_timers[src_path].start()
         
-    def _process_delete_event(self, src_path):
-        del self.deletion_timers[src_path]
+    def _process_modification_event(self, src_path):
+        del self.modification_timers[src_path]
         
-        if not src_path.exists():
+        if src_path.exists():
+            self.storage.update_pickle_of(src_path)
+        else:
             self.storage.delete_pickle_for(src_path)
 
 
