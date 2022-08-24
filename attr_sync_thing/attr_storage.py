@@ -4,6 +4,13 @@ from .configuration import configuration
 from .file_info import FileInfo
 from .logging import debug, info, warning, error
 
+class PickleDummy(object):
+    def update_pickle(self):
+        pass
+
+    def update_fileinfo(self):
+        pass
+
 class PickleFile(object):
     def __init__(self, storage, filename:str, mtime:float, fi:FileInfo):
         self.storage = storage
@@ -139,13 +146,19 @@ class FilesystemAttributeStorage(object):
             del self._pickles[watched_file_relpath]
         
     def restore_from_pickle(self, watched_file_path:pathlib.Path):
-        pickle = self._pickles.get(configuration.relpath_of(watched_file_path),
-                                   None)
+        relpath = configuration.relpath_of(watched_file_path)
+        
+        pickle = self._pickles.get(relpath, None)
         if pickle is not None:
             pickle.fi.write_to_file()
             fn = pickle.filename
         else:
-            fn = "NONE"
+            # There has been an attempt to restore from a pickle that doesn’t
+            # exist. This means a file has arrived through nextcloud but
+            # its pickle hasn’t. We create a PickleDummy that will prevent
+            # a pickle for this relpath file from being created on our side.
+            self._pickles[relpath] = PickleDummy()
+            fn = "DUMMY"
 
         info(f"restore_from_pickle({watched_file_path}) -> {fn}")
             
