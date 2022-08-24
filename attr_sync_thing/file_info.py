@@ -45,9 +45,12 @@ class FileInfo:
         """
         return xattr.xattr(str(self.abspath))
 
-    def read_from_file(self):
+    def read_from_file(self) -> bool:
+        """
+        Read xattrs from a file and return a bool of whether these
+        are different from the ones stored in self.attributes.
+        """
         old = self._attributes
-        read = dict()
         self._attributes = dict(
             [ (name, value)
               for (name, value) in self._accessor.iteritems()
@@ -55,16 +58,25 @@ class FileInfo:
         
         return not ( self._attributes == old )
     
-    def write_to_file(self):
+    def write_to_file(self) -> None:
+        """
+        Write xattrs to the watched file if self.attributes is
+        different from the current attributes of the file. 
+        """
         try:
             a = self._accessor
         except OSError:
             pass
-        else:        
-            a.clear()
-            for name, value in self._attributes.items():
-                if name in configuration.attributes_to_copy:
-                    a[name] = value
+        else:
+            existing = dict([ (name, value)
+                              for (name, value) in a.iteritems()
+                              if name in configuration.attributes_to_copy ])
+
+            if existing != self._attributes:
+                a.clear()
+                for name, value in self._attributes.items():
+                    if name in configuration.attributes_to_copy:
+                        a[name] = value
 
         
 # UNIT TESTS ############################################################
