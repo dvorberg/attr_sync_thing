@@ -124,7 +124,6 @@ class FilesystemAttributeStorage(object):
 
         info(f"update_pickle_of({watched_file_path}) -> "
              f"{self._pickles[relpath].filename}")
-        print(self._pickles[relpath].fi.attributes)
     
     def delete_pickle_for(self, watched_file_path:pathlib.Path):
         info(f"delete_pickle_for({watched_file_path})")
