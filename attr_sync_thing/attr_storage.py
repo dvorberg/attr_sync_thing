@@ -48,7 +48,7 @@ class PickleFile(object):
         • and stores it in its pickle file.
         """
         modified = self.fi.read_from_file()
-
+        
         if modified or (not self.pickle_file_path.exists()):
             with self.pickle_file_path.open("wb") as fp:
                 pickle.dump(self.fi, fp)
@@ -114,7 +114,6 @@ class FilesystemAttributeStorage(object):
              f"{time.time()-start_time:.2f} seconds.")
         
     def update_pickle_of(self, watched_file_path:pathlib.Path):
-        info(f"update_pickle_of({watched_file_path})")
         relpath = configuration.relpath_of(watched_file_path)
 
         if relpath in self._pickles:
@@ -123,6 +122,9 @@ class FilesystemAttributeStorage(object):
             self._pickles[relpath] = PickleFile.from_watched_file(
                 self, watched_file_path)
 
+        info(f"update_pickle_of({watched_file_path}) -> "
+             f"{self._pickles[relpath].filename}")
+        print(self._pickles[relpath].fi.attributes)
     
     def delete_pickle_for(self, watched_file_path:pathlib.Path):
         info(f"delete_pickle_for({watched_file_path})")
@@ -138,17 +140,23 @@ class FilesystemAttributeStorage(object):
             del self._pickles[watched_file_relpath]
         
     def restore_from_pickle(self, watched_file_path:pathlib.Path):
-        info(f"restore_from_pickle({watched_file_path})")
         pickle = self._pickles.get(configuration.relpath_of(watched_file_path),
                                    None)
         if pickle is not None:
             pickle.fi.write_to_file()
+            fn = pickle.filename
+        else:
+            fn = "NONE"
 
+        info(f"restore_from_pickle({watched_file_path}) -> {fn}")
+            
     def process_updated_pickle(self, pickle_file_name:str):
-        info(f"process_updated_pickle({pickle_file_name})")
         pickle = PickleFile.from_pickle_file(self, pickle_file_name)
         self._pickles[pickle.fi.relpath] = pickle
         pickle.fi.write_to_file()
+        
+        info(f"process_updated_pickle({pickle_file_name}) -> "
+             f"{pickle.fi.abspath.name}")
             
     def new_file_name(self) -> str:
         return str(uuid.uuid4()) + ".asta"
