@@ -93,8 +93,8 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
             src_path = pathlib.Path(event.src_path)
             dest_path = pathlib.Path(event.dest_path)
             
-            if configuration.process_this(src_path):                
-                self.storage.delete_pickle_for(src_path)
+            if configuration.process_this(src_path):
+                self._start_deletion_timer_for(src_path)
 
             if configuration.process_this(dest_path):
                 self.storage.update_pickle_of(dest_path)
@@ -111,13 +111,17 @@ class MyWatchdogEventHandler(FileSystemEventHandler):
         # (or has re-appeared) before deleting the pickle. 
         src_path = pathlib.Path(event.src_path)
         if configuration.process_this(src_path):
-            if src_path in self.deletion_timers:
-                self.deletion_timers[src_path].cancel()
-            self.deletion_timers[src_path] = threading.Timer(
-                DEFAULT_OBSERVER_TIMEOUT + .2,
-                self._process_delete_event, args=[src_path,])
-            self.deletion_timers[src_path].start()
+            self._start_deletion_timer_for(src_path)
 
+    def _start_deletion_timer_for(self, src_path,
+                                  timeout=DEFAULT_OBSERVER_TIMEOUT + .2):
+        if src_path in self.deletion_timers:
+            self.deletion_timers[src_path].cancel()
+        self.deletion_timers[src_path] = threading.Timer(
+            timeout,
+            self._process_delete_event, args=[src_path,])
+        self.deletion_timers[src_path].start()
+        
     def _process_delete_event(self, src_path):
         del self.deletion_timers[src_path]
         
